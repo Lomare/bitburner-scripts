@@ -766,7 +766,11 @@ export async function main(ns) {
         // so the flag stays valid and the kick-out reload loop is broken.)
         // NOTE: stored at the HOME ROOT (NOT /Temp/), because cleanup.js (run by both
         // casino.js step 2.6.3 and checkIfBnIsComplete) wipes /Temp/ and would delete the flag.
-        const CASINO_FLAG = '/autopilot-casino-attempted.flag';
+        // NOTE: the extension MUST be a valid Bitburner text extension (.txt/.json/.css) —
+        // ns.write() validates the extension and THROWS on anything else (e.g. ".flag"),
+        // which would crash this script. (Verified against the v3.0.1 source: isTextFile =
+        // [".txt",".json",".css"], isScript = [".js",".jsx",".ts",".tsx",".script"].)
+        const CASINO_FLAG = '/autopilot-casino-attempted.txt';
         const flagAugReset = ns.read(CASINO_FLAG);
         if (flagAugReset != null && Number(flagAugReset) === resetInfo.lastAugReset) {
             log(ns, `INFO: Skipping casino.js, already attempted in this augmentation (flag=${flagAugReset}).`);
@@ -816,7 +820,11 @@ export async function main(ns) {
 
         const pid = launchScriptHelper(ns, 'casino.js', ['--kill-all-scripts', true, '--on-completion-script', ns.getScriptName()]);
         if (pid) {
-            ns.write(CASINO_FLAG, String(resetInfo.lastAugReset), 'w'); // [FIX] Mark casino as attempted THIS augmentation (home root, survives cleanup.js)
+            try {
+                ns.write(CASINO_FLAG, String(resetInfo.lastAugReset), 'w'); // [FIX] Mark casino as attempted THIS augmentation (home root, survives cleanup.js)
+            } catch (e) {
+                log(ns, `WARNING: Failed to write the casino flag (${CASINO_FLAG}): ${e}`);
+            }
             await waitForProcessToComplete(ns, pid);
             await ns.sleep(10000); // Give time for this script to be killed if the game is being restarted by casino.js
             // Otherwise, something went wrong
